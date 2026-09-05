@@ -3,43 +3,38 @@ using System.Text.Json;
 var builder = WebApplication.CreateBuilder(args);
 var app = builder.Build();
 
+var jogos = new List<Jogo>
+{
+    new Jogo(1, "Fortnite", true),
+    new Jogo(2, "Minecraft", false)
+};
+
 app.MapGet("/", () => "API do Catálogo de Jogos está no ar!");
 
 app.MapGet("/api/jogos", () =>
 {
-    return Results.Ok(new[]
+    return Results.Ok(jogos);
+});
+
+app.MapGet("/api/jogos/{id}", (int id) =>
+{
+    var jogoEncontrado = jogos.Find(jogo => jogo.Id == id);
+    if (jogoEncontrado is null)
     {
-        new { id = 1, titulo = "Fortnite", disponivel = true },
-        new { id = 2, titulo = "Minecraft", disponivel = false }
-    });
+        return Results.NotFound();
+    }
+    return Results.Ok(jogoEncontrado);
 });
 
-app.MapGet("/api/jogos/{id:int}", (int id) =>
+app.MapPost("/api/jogos", (JogoEntradaDto dados) =>
 {
-    if (id == 1) return Results.Ok(new { id = 1, titulo = "Fortnite", disponivel = true });
-    if (id == 2) return Results.Ok(new { id = 2, titulo = "Minecraft", disponivel = false });
-    return Results.NotFound(new { mensagem = "Jogo não encontrado." });
-});
-
-app.MapPost("/api/jogos", async (HttpRequest requisicao) =>
-{
-    using JsonDocument documento = await JsonDocument.ParseAsync(requisicao.Body);
-    string titulo = documento.RootElement.GetProperty("titulo").GetString() ?? "";
-    return Results.Created("/api/jogos/3", new { id = 3, titulo, disponivel = true });
-});
-
-app.MapPut("/api/jogos/{id:int}", async (int id, HttpRequest requisicao) =>
-{
-    if (id != 1 && id != 2) return Results.NotFound(new { mensagem = "Jogo não encontrado." });
-    using JsonDocument documento = await JsonDocument.ParseAsync(requisicao.Body);
-    string titulo = documento.RootElement.GetProperty("titulo").GetString() ?? "";
-    return Results.Ok(new { id, titulo, disponivel = true, mensagem = "Jogo atualizado." });
-});
-
-app.MapDelete("/api/jogos/{id:int}", (int id) =>
-{
-    if (id != 1 && id != 2) return Results.NotFound(new { mensagem = "Jogo não encontrado." });
-    return Results.NoContent();
+    int proximoId = jogos.Count + 1;
+    var novoJogo = new Jogo(proximoId, dados.Titulo, true);
+    jogos.Add(novoJogo);
+    return Results.Created($"/api/jogos/{novoJogo.Id}", novoJogo);
 });
 
 app.Run();
+
+record Jogo(int Id, string Titulo, bool Disponivel);
+record JogoEntradaDto(string Titulo);
